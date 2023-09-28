@@ -20,7 +20,6 @@ import androidx.core.content.ContextCompat;
 
 import com.android.volley.Request;
 import com.android.volley.RequestQueue;
-import com.android.volley.Response;
 import com.android.volley.VolleyError;
 import com.android.volley.toolbox.JsonObjectRequest;
 import com.android.volley.toolbox.Volley;
@@ -61,14 +60,13 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     // Google Maps Nearby search API URL for parking places
     // Replace LAT and LNG chars with actual latitude and longitude values
     // To change area of search change value of radius in the URL
-    private String url = "https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=LAT,LNG&radius=2500&types=parking&sensor=false&key=AIzaSyBnlULVqB1LqY_eAgY_8WqwuU0E8-NGtAY";
+    private final String baseUrl = "https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=LAT,LNG&radius=2500&types=parking&sensor=false&key=";
     private RequestQueue mRequestQueue;
     private MapView mapView;
     private GoogleMap googleMap;
     private GeoApiContext geoApiContext;
     private FusedLocationProviderClient fusedLocationProviderClient; // this holds the current phone GPS location
-    private Marker clickedMarker = null;
-    private List<Marker> parkingMarkers = new ArrayList<>();
+    private final List<Marker> parkingMarkers = new ArrayList<>();
     private LatLng customLocation = null;
 
     // this starts the second Activity - MapsActivity
@@ -104,7 +102,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     // this method is called when Google Map is ready
     @Override
-    public void onMapReady(GoogleMap googleMap) {
+    public void onMapReady(@NonNull GoogleMap googleMap) {
         this.googleMap = googleMap;
         // check if Location permission are granted
         if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
@@ -132,21 +130,15 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         ImageButton zoomOutButton = findViewById(R.id.zoomOutButton);
 
         // zoom in functionality
-        zoomInButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                // Zoom in when zoom in button is clicked
-                googleMap.animateCamera(CameraUpdateFactory.zoomIn());
-            }
+        zoomInButton.setOnClickListener((l) -> {
+            // Zoom in when zoom in button is clicked
+            googleMap.animateCamera(CameraUpdateFactory.zoomIn());
         });
 
         // zoom out button functionality
-        zoomOutButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                // Zoom out when zoom out button is clicked
-                googleMap.animateCamera(CameraUpdateFactory.zoomOut());
-            }
+        zoomOutButton.setOnClickListener((l) -> {
+            // Zoom out when zoom out button is clicked
+            googleMap.animateCamera(CameraUpdateFactory.zoomOut());
         });
 
         final LatLng[] userLocation = {null};
@@ -186,86 +178,71 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         }
 
         // adds functionality to find parking button
-        findParkingButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                System.out.println("Making parking places request!");
-                JsonObjectRequest request = generateFindParkingRequest(userLocation, parkingMarkers);
-                mRequestQueue.add(request);
-            }
+        findParkingButton.setOnClickListener((View view) -> {
+            System.out.println("Making parking places request!");
+            JsonObjectRequest request = generateFindParkingRequest(userLocation, parkingMarkers);
+            mRequestQueue.add(request);
         });
 
         // add marker on Google Map where user points
-        googleMap.setOnMarkerClickListener(new GoogleMap.OnMarkerClickListener() {
-            @Override
-            public boolean onMarkerClick(Marker marker) {
-                if (parkingMarkers.contains(marker)) {
-                    // Remove the previously clicked marker, if any
-                    googleMap.clear();
-                    LatLng clickedMarkerLatLng = marker.getPosition();
-                    String title = marker.getTitle();
-                    parkingMarkers.clear();
-                    googleMap.addMarker(new MarkerOptions().position(userLocation[0])
-                            .title("Your Location")
-                            .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_RED)));
+        googleMap.setOnMarkerClickListener((Marker marker) -> {
+            if (parkingMarkers.contains(marker)) {
+                // Remove the previously clicked marker, if any
+                googleMap.clear();
+                LatLng clickedMarkerLatLng = marker.getPosition();
+                String title = marker.getTitle();
+                parkingMarkers.clear();
+                googleMap.addMarker(new MarkerOptions().position(userLocation[0])
+                    .title("Your Location")
+                    .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_RED)));
 
-                    // Add a new marker at the clicked location
-                    clickedMarker = googleMap.addMarker(new MarkerOptions()
-                            .position(clickedMarkerLatLng)
-                            .title(title)
-                            .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_RED)));
+                // Add a new marker at the clicked location
+                googleMap.addMarker(new MarkerOptions().position(clickedMarkerLatLng)
+                    .title(title)
+                    .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_RED)));
 
-                    // Calculate directions from the clicked location to the user's location
-                    calculateDirections(clickedMarkerLatLng, userLocation[0]);
-                    return true;
-                }
-                return false;
+                // Calculate directions from the clicked location to the user's location
+                calculateDirections(clickedMarkerLatLng, userLocation[0]);
+                return true;
             }
+            return false;
         });
     }
 
     // generateFindParkingRequest calls Google's nearby search API to find parking places near given location
     private JsonObjectRequest generateFindParkingRequest(LatLng[] userLocation, List<Marker> parkingMarkers) {
         // add user's current location lat, long
-        url = url.replace("LAT", String.valueOf(userLocation[0].latitude));
+        String url = baseUrl.replace("LAT", String.valueOf(userLocation[0].latitude));
         url = url.replace("LNG", String.valueOf(userLocation[0].longitude));
+        url += getString(R.string.google_maps_key);
 
         return new JsonObjectRequest(Request.Method.GET, url, null,
-            new Response.Listener<JSONObject>() {
-                @Override
-                public void onResponse(JSONObject response) {
-                    // Handle the JSON response here
-                    JSONArray results = null;
-                    try {
-                        results = response.getJSONArray("results");
-                        System.out.println("Places response " + response);
-                        // Iterate through the results and add markers for each parking spot
-                        for (int i = 0; i < results.length(); i++) {
-                            JSONObject place = results.getJSONObject(i);
-                            JSONObject location = place.getJSONObject("geometry").getJSONObject("location");
-                            double lat = location.getDouble("lat");
-                            double lng = location.getDouble("lng");
+            (JSONObject response) -> {
+                // Handle the JSON response here
+                JSONArray results;
+                try {
+                    results = response.getJSONArray("results");
+                    System.out.println("Places response " + response);
+                    // Iterate through the results and add markers for each parking spot
+                    for (int i = 0; i < results.length(); i++) {
+                        JSONObject place = results.getJSONObject(i);
+                        JSONObject location = place.getJSONObject("geometry").getJSONObject("location");
+                        double lat = location.getDouble("lat");
+                        double lng = location.getDouble("lng");
 
-                            // Add a marker for the parking spot
-                            BitmapDescriptor descriptor = BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_BLUE);
-                            Marker currentMarker = googleMap.addMarker(new MarkerOptions()
-                                    .position(new LatLng(lat, lng))
-                                    .title(place.getString("name"))
-                                    .icon(descriptor));
+                        // Add a marker for the parking spot
+                        BitmapDescriptor descriptor = BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_BLUE);
+                        Marker currentMarker = googleMap.addMarker(new MarkerOptions()
+                                .position(new LatLng(lat, lng))
+                                .title(place.getString("name"))
+                                .icon(descriptor));
 
-                            parkingMarkers.add(currentMarker);
-                        }
-                    } catch (JSONException e) {
-                        throw new RuntimeException(e);
+                        parkingMarkers.add(currentMarker);
                     }
+                } catch (JSONException e) {
+                    throw new RuntimeException(e);
                 }
-            },
-            new Response.ErrorListener() {
-                @Override
-                public void onErrorResponse(VolleyError error) {
-                    System.out.println("Error : " + error.networkResponse);
-                }
-            });
+            },(VolleyError error) -> System.out.println("Error : " + error.networkResponse));
     }
 
     // calculateDirections defines method to calculate possible routes from source to destination
@@ -284,7 +261,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                 origin.latitude,
                 origin.longitude
         ));
-        Log.d(TAG, "calculateDirections: destination: " + destination.toString());
+        Log.d(TAG, "calculateDirections: destination: " + destination);
 
         directions.destination(destinationLatLng).setCallback(new PendingResult.Callback<DirectionsResult>() {
             @Override
@@ -306,37 +283,34 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     // addPolylinesToMap defines method to draw path for DirectionsResult (routes from source to destination)
     private void addPolylinesToMap(final DirectionsResult result){
-        new Handler(Looper.getMainLooper()).post(new Runnable() {
-            @Override
-            public void run() {
-                Log.d(TAG, "run: result routes: " + result.routes.length);
+        new Handler(Looper.getMainLooper()).post(() -> {
+            Log.d(TAG, "run: result routes: " + result.routes.length);
 
-                boolean hasFirstPath = false;
-                for(DirectionsRoute route: result.routes) {
-                    List<com.google.maps.model.LatLng> decodedPath = PolylineEncoding.decode(route.overviewPolyline.getEncodedPath());
-                    List<LatLng> newDecodedPath = new ArrayList<>();
+            boolean hasFirstPath = false;
+            for(DirectionsRoute route: result.routes) {
+                List<com.google.maps.model.LatLng> decodedPath = PolylineEncoding.decode(route.overviewPolyline.getEncodedPath());
+                List<LatLng> newDecodedPath = new ArrayList<>();
 
-                    // This loops through all the LatLng coordinates of ONE polyline.
-                    for(com.google.maps.model.LatLng latLng: decodedPath){
-                        newDecodedPath.add(new LatLng(
-                                latLng.lat,
-                                latLng.lng
-                        ));
-                    }
-                    if(googleMap == null) {
-                        System.out.println("Map is null !!!");
-                    }
-                    Polyline polyline = googleMap.addPolyline(new PolylineOptions().addAll(newDecodedPath));
-                    if(!hasFirstPath) {
-                        polyline.setColor(Color.BLUE);
-                        polyline.setWidth(30);
-                        hasFirstPath = true;
-                    } else {
-                        polyline.setColor(Color.GRAY);
-                        polyline.setWidth(15);
-                    }
-                    polyline.setClickable(true);
+                // This loops through all the LatLng coordinates of ONE polyline.
+                for(com.google.maps.model.LatLng latLng: decodedPath){
+                    newDecodedPath.add(new LatLng(
+                            latLng.lat,
+                            latLng.lng
+                    ));
                 }
+                if(googleMap == null) {
+                    System.out.println("Map is null !!!");
+                }
+                Polyline polyline = googleMap.addPolyline(new PolylineOptions().addAll(newDecodedPath));
+                if(!hasFirstPath) {
+                    polyline.setColor(Color.BLUE);
+                    polyline.setWidth(30);
+                    hasFirstPath = true;
+                } else {
+                    polyline.setColor(Color.GRAY);
+                    polyline.setWidth(15);
+                }
+                polyline.setClickable(true);
             }
         });
     }
