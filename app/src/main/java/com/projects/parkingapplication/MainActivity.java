@@ -16,16 +16,27 @@ import androidx.appcompat.widget.SwitchCompat;
 
 import com.google.android.gms.maps.model.LatLng;
 
+import java.util.HashMap;
+import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 // This is our MainActivity (Backend) - on app launch
 public class MainActivity extends AppCompatActivity {
 
     // Declare variables to access UI elements
     private SwitchCompat locationSwitch;
-    private EditText customLocationLatitude;
-    private EditText customLocationLongitude;
+    private EditText customLocation;
     private Spinner spinnerMenu;
     private Button findParkingButton;
     private LatLng customLatLng = null;
+    private final Pattern locationPattern = Pattern.compile("^-?\\d{1,2}\\.\\d{2,},-?\\d{1,3}\\.\\d{2,}$");
+
+    private final Map<String, String> locations = new HashMap<String, String>() {{
+        put("tajmahal", "27.173891,78.042068");
+        put("tajhotel", "18.921729,72.833031");
+        put("statueofunity", "21.8380,73.7191");
+    }};
 
     // this function is executed on App launch
     @Override
@@ -35,14 +46,12 @@ public class MainActivity extends AppCompatActivity {
 
         // bind UI items in variables
         locationSwitch = findViewById(R.id.locationSwitch);
-        customLocationLatitude = findViewById(R.id.customLocationLatitude);
-        customLocationLongitude = findViewById(R.id.customLocationLongitude);
+        customLocation = findViewById(R.id.customLocation);
         spinnerMenu = findViewById(R.id.spinnerMenu);
         findParkingButton = findViewById(R.id.findParkingButton);
 
         // Set up TextWatchers for customLocationEditText1 and customLocationEditText2
-        customLocationLatitude.addTextChangedListener(textWatcher);
-        customLocationLongitude.addTextChangedListener(textWatcher);
+        customLocation.addTextChangedListener(textWatcher);
 
         // disable find parking button
         findParkingButton.setEnabled(false);
@@ -51,14 +60,11 @@ public class MainActivity extends AppCompatActivity {
         locationSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
             // When the switch changes, update the visibility of custom location EditTexts
             if (isChecked) {
-                customLocationLatitude.setVisibility(EditText.VISIBLE);
-                customLocationLongitude.setVisibility(EditText.VISIBLE);
+                customLocation.setVisibility(EditText.VISIBLE);
             } else {
-                customLocationLatitude.setVisibility(EditText.INVISIBLE);
-                customLocationLongitude.setVisibility(EditText.INVISIBLE);
+                customLocation.setVisibility(EditText.INVISIBLE);
                 // Reset the EditTexts and disable the button
-                customLocationLatitude.setText("");
-                customLocationLongitude.setText("");
+                customLocation.setText("");
                 enableFindParkingButton();
             }
         });
@@ -105,18 +111,24 @@ public class MainActivity extends AppCompatActivity {
     // Enable or disable the findParkingButton based on conditions
     private void enableFindParkingButton() {
         boolean isCustomLocationEnabled = locationSwitch.isChecked();
-        boolean isLatitudeFilled = !customLocationLatitude.getText().toString().trim().isEmpty();
-        boolean isLongitudeFilled = !customLocationLongitude.getText().toString().trim().isEmpty();
+        boolean isLocationFilled = !customLocation.getText().toString().trim().isEmpty();
         // Use spinnerMenu.getSelectedItemPosition() to get the selected position
         boolean isSpinnerItemSelected = spinnerMenu.getSelectedItemPosition() > 0;
 
         if (isCustomLocationEnabled) {
-            findParkingButton.setEnabled(isLatitudeFilled && isLongitudeFilled && isSpinnerItemSelected);
-            customLatLng = new LatLng(Double.parseDouble(customLocationLatitude.getText().toString()), Double.parseDouble(customLocationLongitude.getText().toString()));
-            if(isLatitudeFilled && isLongitudeFilled){
-                customLatLng = new LatLng(Double.parseDouble(customLocationLatitude.getText().toString()), Double.parseDouble(customLocationLongitude.getText().toString()));
-                System.out.println("Location in Main -- " + customLatLng);
+            String inputLoc = customLocation.getText().toString().trim();
+            inputLoc = inputLoc.replaceAll(" ", "");
+            Matcher locationRegexMatcher = locationPattern.matcher(inputLoc);
+            String[] location;
+            if(!locationRegexMatcher.matches()) {
+                inputLoc = locations.getOrDefault(inputLoc.toLowerCase(), locations.get("tajmahal"));
             }
+            location = inputLoc.split(",");
+            if(location.length != 2) {
+                return;
+            }
+            customLatLng = new LatLng(Double.parseDouble(location[0]), Double.parseDouble(location[1]));
+            findParkingButton.setEnabled(isLocationFilled && isSpinnerItemSelected);
         } else {
             findParkingButton.setEnabled(isSpinnerItemSelected);
         }
@@ -137,8 +149,7 @@ public class MainActivity extends AppCompatActivity {
         @Override
         public void afterTextChanged(Editable s) {
             // Check if both EditTexts have non-empty text to enable the button
-            boolean isEditText1Filled = !customLocationLatitude.getText().toString().trim().isEmpty();
-            boolean isEditText2Filled = !customLocationLongitude.getText().toString().trim().isEmpty();
+            boolean isEditText1Filled = !customLocation.getText().toString().trim().isEmpty();
         }
     };
 }

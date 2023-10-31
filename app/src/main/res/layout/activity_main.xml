@@ -54,24 +54,14 @@
 
     <!-- Custom Location Inputs (Initially Invisible) -->
     <EditText
-        android:id="@+id/customLocationLatitude"
+        android:id="@+id/customLocation"
         android:layout_width="250dp"
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
-        android:inputType="numberSigned|numberDecimal"
-        android:hint="@string/latitude"
-        android:autofillHints="location latitude"
+        android:inputType="text"
+        android:hint="@string/location"
+        android:autofillHints="text location or latitude/longitude"
         android:visibility="invisible" />
-
-    <EditText
-        android:id="@+id/customLocationLongitude"
-        android:layout_width="250dp"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
-        android:inputType="numberSigned|numberDecimal"
-        android:hint="@string/longitude"
-        android:visibility="invisible"
-        android:autofillHints="location longitude" />
 
     <!-- Spinner and Button -->
     <Spinner
